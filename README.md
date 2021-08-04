@@ -41,7 +41,7 @@ More information:
 CREDITS
 -------
  * Jonathan Oxer jon@oxer.com.au
- * Ben Jones <ben.jones12@gmail.com>
+ * Ben Jones <https://github.com/sumnerboy12>
  * Moin <https://github.com/moinmoin-sh>
 
 
