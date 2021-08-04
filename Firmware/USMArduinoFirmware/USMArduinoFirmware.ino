@@ -148,7 +148,7 @@ USM_Input usmInput[MCP_MAX_COUNT];
 EthernetClient ethernet;
 
 // MQTT client
-PubSubClient mqtt_client(mqtt_broker, mqtt_port, mqttCallback, ethernet);
+PubSubClient mqtt_client(MQTT_BROKER, MQTT_PORT, mqttCallback, ethernet);
 
 // OLED
 SSD1306AsciiWire oled;
@@ -204,7 +204,7 @@ void setup()
   else
   {
     Serial.print(F("Using static MAC address: "));
-    memcpy(mac, static_mac, sizeof(mac));
+    memcpy(mac, STATIC_MAC, sizeof(mac));
   }
   char mac_address[18];
   sprintf_P(mac_address, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -219,7 +219,7 @@ void setup()
   else
   {
     Serial.print(F("Using static IP address: "));
-    Ethernet.begin(mac, static_ip, static_dns);
+    Ethernet.begin(mac, STATIC_IP, STATIC_DNS);
   }
   Serial.println(Ethernet.localIP());
 
@@ -233,13 +233,13 @@ void setup()
   }
 
   // Generate MQTT client id, unless one is explicitly defined
-  if (mqtt_client_id == NULL)
+  if (MQTT_CLIENT_ID == NULL)
   {
     sprintf_P(g_mqtt_client_id, PSTR("USM-%02X%02X%02X"), mac[3], mac[4], mac[5]);  
   }
   else
   {
-    memcpy(g_mqtt_client_id, mqtt_client_id, sizeof(g_mqtt_client_id));
+    memcpy(g_mqtt_client_id, MQTT_CLIENT_ID, sizeof(g_mqtt_client_id));
   }
   Serial.print(F("MQTT client id: "));
   Serial.println(g_mqtt_client_id);
@@ -247,7 +247,7 @@ void setup()
   // Generate MQTT LWT topic (if required)
   if (ENABLE_MQTT_LWT)
   {
-    sprintf_P(g_mqtt_lwt_topic, PSTR("%s/%s"), mqtt_lwt_base_topic, g_mqtt_client_id);  
+    sprintf_P(g_mqtt_lwt_topic, PSTR("%s/%s"), MQTT_LWT_BASE_TOPIC, g_mqtt_client_id);  
     Serial.print(F("MQTT LWT topic: "));
     Serial.println(g_mqtt_lwt_topic);
   }
@@ -341,11 +341,11 @@ boolean mqttConnect()
   boolean success;
   if (ENABLE_MQTT_LWT)
   {
-    success = mqtt_client.connect(g_mqtt_client_id, mqtt_username, mqtt_password, g_mqtt_lwt_topic, mqtt_lwt_qos, mqtt_lwt_retain, "0");
+    success = mqtt_client.connect(g_mqtt_client_id, MQTT_USERNAME, MQTT_PASSWORD, g_mqtt_lwt_topic, MQTT_LWT_QOS, MQTT_LWT_RETAIN, "0");
   }
   else
   {
-    success = mqtt_client.connect(g_mqtt_client_id, mqtt_username, mqtt_password);
+    success = mqtt_client.connect(g_mqtt_client_id, MQTT_USERNAME, MQTT_PASSWORD);
   }
 
   if (success)
@@ -358,7 +358,7 @@ boolean mqttConnect()
     if (ENABLE_MQTT_LWT)
     {
       byte lwt_payload[] = { '1' };
-      mqtt_client.publish(g_mqtt_lwt_topic, lwt_payload, 1, mqtt_lwt_retain);
+      mqtt_client.publish(g_mqtt_lwt_topic, lwt_payload, 1, MQTT_LWT_RETAIN);
     }
   }
 
@@ -385,7 +385,7 @@ void mqttCallback(char * topic, byte * payload, int length)
   topicIndex = strtok(NULL, "/");
   topicIndex = strtok(NULL, "/");
 
-  if (mqtt_base_topic != NULL)
+  if (MQTT_BASE_TOPIC != NULL)
   {
     topicIndex = strtok(NULL, "/");
   }
@@ -568,26 +568,26 @@ void getEventType(char eventType[], uint8_t type, uint8_t state)
 
 char * getConfigTopic(char topic[])
 {
-  if (mqtt_base_topic == NULL)
+  if (MQTT_BASE_TOPIC == NULL)
   {
     sprintf_P(topic, PSTR("conf/%s/+/+"), g_mqtt_client_id);
   }
   else
   {
-    sprintf_P(topic, PSTR("%s/conf/%s/+/+"), mqtt_base_topic, g_mqtt_client_id);
+    sprintf_P(topic, PSTR("%s/conf/%s/+/+"), MQTT_BASE_TOPIC, g_mqtt_client_id);
   }
   return topic;
 }
 
 char * getEventTopic(char topic[], uint8_t index)
 {
-  if (mqtt_base_topic == NULL)
+  if (MQTT_BASE_TOPIC == NULL)
   {
     sprintf_P(topic, PSTR("stat/%s/%d"), g_mqtt_client_id, index);
   }
   else
   {
-    sprintf_P(topic, PSTR("%s/stat/%s/%d"), mqtt_base_topic, g_mqtt_client_id, index);
+    sprintf_P(topic, PSTR("%s/stat/%s/%d"), MQTT_BASE_TOPIC, g_mqtt_client_id, index);
   }
   return topic;
 }
