@@ -35,8 +35,8 @@ resistors to pull the signal wires high and detects when they are pulled low.
 
 More information:
 
-  http://www.superhouse.tv/lsc
-  http://www.superhouse.tv/urc
+ * http://www.superhouse.tv/lsc
+ * http://www.superhouse.tv/urc
 
 
 CREDITS
