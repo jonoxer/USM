@@ -22,7 +22,7 @@ home automation system.
 HARDWARE
 --------
 The USM firmware is compatible with the [Light Switch Controller](https://github.com/SuperHouse/LSC) (LSC) 
-and is designed to run on the [Universal Rack Controller](https://github.com/SuperHouse/URC).
+and is designed to run on the [Universal Rack Controller](https://github.com/SuperHouse/URC) (URC).
 
 The LSC hardware provides 12V power down the line, which can be used
 for powering sensors (e.g. PIRs), or illuminating LEDs on light switch
