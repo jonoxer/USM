@@ -81,7 +81,7 @@
 */
 
 /*--------------------------- Version ------------------------------------*/
-#define VERSION "4.9"
+#define VERSION "5.0"
 
 /*--------------------------- Configuration ------------------------------*/
 // Should be no user configuration in this file, everything should be in;
@@ -91,7 +91,7 @@
 #include <Wire.h>                     // For I2C
 #include <Ethernet.h>                 // For networking
 #include <PubSubClient.h>             // For MQTT
-#include "Adafruit_MCP23017.h"        // For MCP23017 I/O buffers
+#include <Adafruit_MCP23X17.h>        // For MCP23017 I/O buffers
 #include <USM_Input.h>                // For input handling
 #include "USM_Oled.h"                 // For OLED runtime displays
 
@@ -135,7 +135,7 @@ void mqttCallback(char * topic, byte * payload, int length);
 
 /*--------------------------- Instantiate Global Objects -----------------*/
 // I/O buffers
-Adafruit_MCP23017 mcp23017[MCP_COUNT];
+Adafruit_MCP23X17 mcp23017[MCP_COUNT];
 
 // Input handlers
 USM_Input usmInput[MCP_COUNT];
@@ -748,15 +748,10 @@ void scanI2CBus()
       bitWrite(g_mcps_found, mcp, 1);
       
       // If an MCP23017 was found then initialise and configure the inputs
-      mcp23017[mcp].begin(MCP_I2C_ADDRESS[mcp] & 0x07);
+      mcp23017[mcp].begin_I2C(MCP_I2C_ADDRESS[mcp]);
       for (uint8_t pin = 0; pin < MCP_PIN_COUNT; pin++)
       {
-        mcp23017[mcp].pinMode(pin, INPUT);
-        if (MCP_INTERNAL_PULLUPS) { mcp23017[mcp].pullUp(pin, HIGH); }
-
-        // NOTE: above code works for v1.3.0 of the MCP23017 library
-        //       but in v2.0.0+ need to replace with;
-        //mcp23017[mcp].pinMode(pin, MCP_INTERNAL_PULLUPS ? INPUT_PULLUP : INPUT);
+        mcp23017[mcp].pinMode(pin, MCP_INTERNAL_PULLUPS ? INPUT_PULLUP : INPUT);
       }
 
       // Listen for input events
