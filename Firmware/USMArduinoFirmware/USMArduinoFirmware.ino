@@ -61,9 +61,9 @@
       "Adafruit_MCP23017"
       "PubSubClient" by Nick O'Leary
       "SSD1306Ascii"
+      "USM_Input" by Ben Jones (https://github.com/sumnerboy12/USMInput-Arduino-Library)
 
   Bundled dependencies. No need to install separately:
-      "USM_Input" by ben.jones12@gmail.com, based on mdButton library
       "USM_Oled" by moinmoin-sh
 
   Based on the Light Switch Controller hardware found here:
@@ -92,7 +92,7 @@
 #include <Ethernet.h>                 // For networking
 #include <PubSubClient.h>             // For MQTT
 #include "Adafruit_MCP23017.h"        // For MCP23017 I/O buffers
-#include "USM_Input.h"                // For input handling (embedded)
+#include <USM_Input.h>                // For input handling
 #include "USM_Oled.h"                 // For OLED runtime displays
 
 /*--------------------------- Constants ----------------------------------*/
