@@ -53,9 +53,7 @@
     TOGGLE      TOGGLE
 
   Compile options:
-    Arduino Uno or Arduino Mega 2560
-    If using an Uno (or clone) suggest setting MCP_MAX_COUNT = 6 as any
-    more than that starts to cause "Low memory" warnings in the compiler
+    ESP32 or Arduino Mega 2560
 
   External dependencies. Install using the Arduino library manager:
       "Adafruit_MCP23017"
