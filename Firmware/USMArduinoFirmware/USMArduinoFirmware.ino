@@ -56,7 +56,7 @@
     ESP32 or Arduino Mega 2560
 
   External dependencies. Install using the Arduino library manager:
-      "Adafruit_MCP23017"
+      "Adafruit_MCP23017" (requires recent "Adafruit_BusIO" library)
       "PubSubClient" by Nick O'Leary
       "SSD1306Ascii"
       "USM_Input" by Ben Jones (https://github.com/sumnerboy12/USMInput-Arduino-Library)
@@ -187,13 +187,19 @@ void setup()
   byte mac[6];
   if (ENABLE_MAC_ADDRESS_ROM)
   {
-    Serial.print(F("Getting MAC address from ROM: "));
+#ifdef ARDUINO_ARCH_ESP32
+    Serial.print(F("Getting MAC address from ESP32 chip ID: "));
+    uint64_t chip_id = ESP.getEfuseMac();
+    memcpy(mac, &chip_id, sizeof(mac));
+#else
+    Serial.print(F("Getting MAC address from external ROM: "));
     mac[0] = readRegister(MAC_I2C_ADDRESS, 0xFA);
     mac[1] = readRegister(MAC_I2C_ADDRESS, 0xFB);
     mac[2] = readRegister(MAC_I2C_ADDRESS, 0xFC);
     mac[3] = readRegister(MAC_I2C_ADDRESS, 0xFD);
     mac[4] = readRegister(MAC_I2C_ADDRESS, 0xFE);
     mac[5] = readRegister(MAC_I2C_ADDRESS, 0xFF);
+#endif
   }
   else
   {
@@ -205,6 +211,8 @@ void setup()
   Serial.println(mac_address);
 
   // Set up Ethernet
+  Ethernet.init(ETHERNET_CS_PIN);
+  resetWiznetChip();
   if (ENABLE_DHCP)
   {
     Serial.print(F("Getting IP address via DHCP: "));
@@ -826,3 +834,17 @@ void writeRegister(int adr, uint8_t reg, uint8_t data)
   Wire.write(data); 
   Wire.endTransmission();
 } 
+
+// Reset the Wiznet Ethernet chip
+void resetWiznetChip()
+{
+  Serial.print("Resetting Wiznet W5500 Ethernet chip...  ");
+  pinMode(WIZNET_RESET_PIN, OUTPUT);
+  digitalWrite(WIZNET_RESET_PIN, HIGH);
+  delay(250);
+  digitalWrite(WIZNET_RESET_PIN, LOW);
+  delay(50);
+  digitalWrite(WIZNET_RESET_PIN, HIGH);
+  delay(350);
+  Serial.println("Done.");
+}
