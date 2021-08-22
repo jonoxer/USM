@@ -87,7 +87,9 @@
 
 /*--------------------------- Libraries ----------------------------------*/
 #include <Wire.h>                     // For I2C
+#if ENABLE_ETHERNET
 #include <Ethernet.h>                 // For networking
+#endif
 #include <PubSubClient.h>             // For MQTT
 #include <Adafruit_MCP23X17.h>        // For MCP23017 I/O buffers
 #include <USM_Input.h>                // For input handling
@@ -108,7 +110,8 @@ uint8_t g_mcps_found = 0;
 byte g_oled_found = 0;
 
 // If no mqtt_client_id set in config.h defaults to "USM-<MAC ADDRESS>"
-char g_mqtt_client_id[16];
+char g_mqtt_ethernet_client_id[16];
+char g_mqtt_wifi_client_id[16];
 
 // LWT published to <mqtt_lwt_base_topic>/<mqtt_client_id>
 char g_mqtt_lwt_topic[32];
@@ -117,7 +120,8 @@ char g_mqtt_lwt_topic[32];
 uint8_t g_mqtt_backoff = 0;
 
 // Last time we attempted to reconnect to MQTT
-uint32_t g_mqtt_last_reconnect_ms = 0L;
+uint32_t g_mqtt_ethernet_last_reconnect_ms = 0L;
+uint32_t g_mqtt_wifi_last_reconnect_ms = 0L;
 
 // Last time the watchdog was reset
 uint32_t g_watchdog_last_reset_ms = 0L;
@@ -142,10 +146,22 @@ Adafruit_MCP23X17 mcp23017[MCP_COUNT];
 USM_Input usmInput[MCP_COUNT];
 
 // Ethernet client
+#if ENABLE_ETHERNET
 EthernetClient ethernet;
+#endif
+
+// WiFi client
+#if ENABLE_WIFI
+WiFiClient wifi;
+#endif
 
 // MQTT client
-PubSubClient mqtt_client(MQTT_BROKER, MQTT_PORT, mqttCallback, ethernet);
+#if ENABLE_ETHERNET
+PubSubClient mqtt_ethernet_client(MQTT_BROKER, MQTT_PORT, mqttCallback, ethernet);
+#endif
+#if ENABLE_WIFI
+PubSubClient mqtt_wifi_client(MQTT_BROKER, MQTT_PORT, mqttCallback, wifi);
+#endif
 
 // OLED
 SSD1306AsciiWire oled;
@@ -186,6 +202,7 @@ void setup()
     USM_Oled_draw_ports(g_mcps_found);
   }
 
+#if ENABLE_ETHERNET
   // Determine Ethernet MAC address
   byte ethernet_mac[6];
   if (ENABLE_MAC_ADDRESS_ROM)
@@ -202,58 +219,98 @@ void setup()
     ethernet_mac[3] = readRegister(MAC_I2C_ADDRESS, 0xFD);
     ethernet_mac[4] = readRegister(MAC_I2C_ADDRESS, 0xFE);
     ethernet_mac[5] = readRegister(MAC_I2C_ADDRESS, 0xFF);
-#endif
+#endif // ARDUINO_ARCH_ESP32
   }
   else
   {
-    Serial.print(F("Using static MAC address: "));
+    Serial.print(F("Using static Ethernet MAC address: "));
     memcpy(ethernet_mac, STATIC_MAC, sizeof(ethernet_mac));
   }
-  char mac_address[18];
-  sprintf_P(mac_address, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), ethernet_mac[0], ethernet_mac[1], ethernet_mac[2], ethernet_mac[3], ethernet_mac[4], ethernet_mac[5]);
-  Serial.println(mac_address);
+  char ethernet_mac_address[18];
+  sprintf_P(ethernet_mac_address, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), ethernet_mac[0], ethernet_mac[1], ethernet_mac[2], ethernet_mac[3], ethernet_mac[4], ethernet_mac[5]);
+  Serial.println(ethernet_mac_address);
 
   // Set up Ethernet
   Ethernet.init(ETHERNET_CS_PIN);
   resetWiznetChip();
   if (ENABLE_DHCP)
   {
-    Serial.print(F("Getting IP address via DHCP: "));
+    Serial.print(F("Getting Ethernet IP address via DHCP: "));
     Ethernet.begin(ethernet_mac);
   }
   else
   {
-    Serial.print(F("Using static IP address: "));
+    Serial.print(F("Ethernet static IP address: "));
     Ethernet.begin(ethernet_mac, STATIC_IP, STATIC_DNS);
   }
   Serial.println(Ethernet.localIP());
 
-  // Display IP and MAC addresses
+  // Display Ethernet IP and MAC addresses
   if (g_oled_found)
   {
     oled.setCursor(25, 2);
     oled.print(Ethernet.localIP()); 
     oled.setCursor(25, 3);
-    oled.print(mac_address); 
+    oled.print(ethernet_mac_address); 
   }
 
   // Generate MQTT client id, unless one is explicitly defined
   if (MQTT_CLIENT_ID == NULL)
   {
-    // Below uses Ethernet MAC. Ideally it should also support WiFi MAC depending on active connection.
-    sprintf_P(g_mqtt_client_id, PSTR("USM-%02X%02X%02X"), ethernet_mac[3], ethernet_mac[4], ethernet_mac[5]);  
+    sprintf_P(g_mqtt_ethernet_client_id, PSTR("USM-%02X%02X%02X"), ethernet_mac[3], ethernet_mac[4], ethernet_mac[5]);  
   }
   else
   {
-    memcpy(g_mqtt_client_id, MQTT_CLIENT_ID, sizeof(g_mqtt_client_id));
+    memcpy(g_mqtt_ethernet_client_id, MQTT_CLIENT_ID, sizeof(g_mqtt_ethernet_client_id));
   }
-  Serial.print(F("MQTT client id: "));
-  Serial.println(g_mqtt_client_id);
+  Serial.print(F("MQTT Ethernet client id: "));
+  Serial.println(g_mqtt_ethernet_client_id);
+#endif
+
+
+#if ENABLE_WIFI
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  /*
+  if (WiFi.status() == WL_CONNECTED)
+  {
+      Serial.println("WiFi connected");
+      Serial.println("WiFi IP address: ");
+      Serial.println(WiFi.localIP());
+  } */
+  while (WiFi.status() != WL_CONNECTED)
+  {
+      // Waiting
+  }
+  Serial.println("WiFi connected");
+  Serial.println("WiFi IP address: ");
+  Serial.println(WiFi.localIP());
+  
+  // Determine WiFi MAC address
+  byte wifi_mac[6];
+  Serial.print(F("Getting WiFi MAC address: "));
+  WiFi.macAddress(wifi_mac);
+  char wifi_mac_address[18];
+  sprintf_P(wifi_mac_address, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), wifi_mac[0], wifi_mac[1], wifi_mac[2], wifi_mac[3], wifi_mac[4], wifi_mac[5]);
+  Serial.println(wifi_mac_address);
+
+  // Generate MQTT client id, unless one is explicitly defined
+  if (MQTT_CLIENT_ID == NULL)
+  {
+    sprintf_P(g_mqtt_wifi_client_id, PSTR("USM-%02X%02X%02X"), wifi_mac[3], wifi_mac[4], wifi_mac[5]);  
+  }
+  else
+  {
+    memcpy(g_mqtt_wifi_client_id, MQTT_CLIENT_ID, sizeof(g_mqtt_wifi_client_id));
+  }
+  Serial.print(F("MQTT WiFi client id: "));
+  Serial.println(g_mqtt_wifi_client_id);
+#endif
+
 
   // Generate MQTT LWT topic (if required)
   if (ENABLE_MQTT_LWT)
   {
-    sprintf_P(g_mqtt_lwt_topic, PSTR("%s/%s"), MQTT_LWT_BASE_TOPIC, g_mqtt_client_id);  
+    sprintf_P(g_mqtt_lwt_topic, PSTR("%s/%s"), MQTT_LWT_BASE_TOPIC, g_mqtt_ethernet_client_id);  
     Serial.print(F("MQTT LWT topic: "));
     Serial.println(g_mqtt_lwt_topic);
   }
@@ -264,11 +321,17 @@ void setup()
 */
 void loop()
 {
+#if ENABLE_ETHERNET
   // Check our DHCP lease is still ok
   Ethernet.maintain();
-
   // Check our MQTT broker connection is still ok
-  mqttMaintain();
+  mqttEthernetMaintain();
+#endif
+
+#if ENABLE_WIFI
+  // Check our MQTT broker connection is still ok
+  mqttWiFiMaintain();
+#endif
 
   // Iterate through each of the MCP23017 input buffers
   uint32_t port_changed = 0L;
@@ -307,23 +370,24 @@ void loop()
 /**
   MQTT
 */
-void mqttMaintain()
+#if ENABLE_ETHERNET
+void mqttEthernetMaintain()
 {
-  if (mqtt_client.loop())
+  if (mqtt_ethernet_client.loop())
   {
     // Currently connected so ensure we are ready to reconnect if it drops
     g_mqtt_backoff = 0;
-    g_mqtt_last_reconnect_ms = millis();    
+    g_mqtt_ethernet_last_reconnect_ms = millis();    
   }
   else
   {
     // Calculate the backoff interval and check if we need to try again
     uint32_t mqtt_backoff_ms = (uint32_t)g_mqtt_backoff * MQTT_BACKOFF_SECS * 1000;
-    if ((millis() - g_mqtt_last_reconnect_ms) > mqtt_backoff_ms)
+    if ((millis() - g_mqtt_ethernet_last_reconnect_ms) > mqtt_backoff_ms)
     {
       Serial.print(F("Connecting to MQTT broker..."));
 
-      if (mqttConnect()) 
+      if (mqttEthernetConnect()) 
       {
         Serial.println(F("success"));
       }
@@ -331,7 +395,7 @@ void mqttMaintain()
       {
         // Reconnection failed, so backoff
         if (g_mqtt_backoff < MQTT_MAX_BACKOFF_COUNT) { g_mqtt_backoff++; }
-        g_mqtt_last_reconnect_ms = millis();
+        g_mqtt_ethernet_last_reconnect_ms = millis();
 
         Serial.print(F("failed, retry in "));
         Serial.print(g_mqtt_backoff * MQTT_BACKOFF_SECS);
@@ -340,36 +404,106 @@ void mqttMaintain()
     }
   }
 }
+#endif
 
-boolean mqttConnect()
+#if ENABLE_WIFI
+void mqttWiFiMaintain()
+{
+  if (mqtt_wifi_client.loop())
+  {
+    // Currently connected so ensure we are ready to reconnect if it drops
+    g_mqtt_backoff = 0;
+    g_mqtt_wifi_last_reconnect_ms = millis();    
+  }
+  else
+  {
+    // Calculate the backoff interval and check if we need to try again
+    uint32_t mqtt_backoff_ms = (uint32_t)g_mqtt_backoff * MQTT_BACKOFF_SECS * 1000;
+    if ((millis() - g_mqtt_wifi_last_reconnect_ms) > mqtt_backoff_ms)
+    {
+      Serial.print(F("Connecting to MQTT broker..."));
+
+      if (mqttWiFiConnect())
+      {
+        Serial.println(F("success"));
+      }
+      else
+      {
+        // Reconnection failed, so backoff
+        if (g_mqtt_backoff < MQTT_MAX_BACKOFF_COUNT) { g_mqtt_backoff++; }
+        g_mqtt_wifi_last_reconnect_ms = millis();
+
+        Serial.print(F("failed, retry in "));
+        Serial.print(g_mqtt_backoff * MQTT_BACKOFF_SECS);
+        Serial.println(F("s"));
+      }
+    }
+  }
+}
+#endif
+
+#if ENABLE_ETHERNET
+boolean mqttEthernetConnect()
 {
   // Attempt to connect, with a LWT if configured
   boolean success;
   if (ENABLE_MQTT_LWT)
   {
-    success = mqtt_client.connect(g_mqtt_client_id, MQTT_USERNAME, MQTT_PASSWORD, g_mqtt_lwt_topic, MQTT_LWT_QOS, MQTT_LWT_RETAIN, "0");
+    success = mqtt_ethernet_client.connect(g_mqtt_ethernet_client_id, MQTT_USERNAME, MQTT_PASSWORD, g_mqtt_lwt_topic, MQTT_LWT_QOS, MQTT_LWT_RETAIN, "0");
   }
   else
   {
-    success = mqtt_client.connect(g_mqtt_client_id, MQTT_USERNAME, MQTT_PASSWORD);
+    success = mqtt_ethernet_client.connect(g_mqtt_ethernet_client_id, MQTT_USERNAME, MQTT_PASSWORD);
   }
 
   if (success)
   {
     // Subscribe to our config topics
     char topic[42];
-    mqtt_client.subscribe(getConfigTopic(topic));
-    
+    mqtt_ethernet_client.subscribe(getConfigTopic(topic));
     // Publish LWT so anything listening knows we are alive
     if (ENABLE_MQTT_LWT)
     {
       byte lwt_payload[] = { '1' };
-      mqtt_client.publish(g_mqtt_lwt_topic, lwt_payload, 1, MQTT_LWT_RETAIN);
+      mqtt_ethernet_client.publish(g_mqtt_lwt_topic, lwt_payload, 1, MQTT_LWT_RETAIN);
     }
   }
 
   return success;
 }
+#endif
+
+#if ENABLE_WIFI
+boolean mqttWiFiConnect()
+{
+  // Attempt to connect, with a LWT if configured
+  boolean success;
+  if (ENABLE_MQTT_LWT)
+  {
+    success = mqtt_wifi_client.connect(g_mqtt_wifi_client_id, MQTT_USERNAME, MQTT_PASSWORD, g_mqtt_lwt_topic, MQTT_LWT_QOS, MQTT_LWT_RETAIN, "0");
+  }
+  else
+  {
+    success = mqtt_wifi_client.connect(g_mqtt_wifi_client_id, MQTT_USERNAME, MQTT_PASSWORD);
+  }
+
+  if (success)
+  {
+    // Subscribe to our config topics
+    char topic[42];
+    mqtt_wifi_client.subscribe(getConfigTopic(topic));
+    // Publish LWT so anything listening knows we are alive
+    if (ENABLE_MQTT_LWT)
+    {
+      byte lwt_payload[] = { '1' };
+      mqtt_wifi_client.publish(g_mqtt_lwt_topic, lwt_payload, 1, MQTT_LWT_RETAIN);
+    }
+  }
+
+  return success;
+}
+#endif
+
 
 void mqttCallback(char * topic, byte * payload, int length) 
 {
@@ -576,24 +710,37 @@ char * getConfigTopic(char topic[])
 {
   if (MQTT_BASE_TOPIC == NULL)
   {
-    sprintf_P(topic, PSTR("conf/%s/+/+"), g_mqtt_client_id);
+    sprintf_P(topic, PSTR("conf/%s/+/+"), g_mqtt_ethernet_client_id);
   }
   else
   {
-    sprintf_P(topic, PSTR("%s/conf/%s/+/+"), MQTT_BASE_TOPIC, g_mqtt_client_id);
+    sprintf_P(topic, PSTR("%s/conf/%s/+/+"), MQTT_BASE_TOPIC, g_mqtt_ethernet_client_id);
   }
   return topic;
 }
 
-char * getEventTopic(char topic[], uint8_t index)
+char * getEthernetEventTopic(char topic[], uint8_t index)
 {
   if (MQTT_BASE_TOPIC == NULL)
   {
-    sprintf_P(topic, PSTR("stat/%s/%d"), g_mqtt_client_id, index);
+    sprintf_P(topic, PSTR("stat/%s/%d"), g_mqtt_ethernet_client_id, index);
   }
   else
   {
-    sprintf_P(topic, PSTR("%s/stat/%s/%d"), MQTT_BASE_TOPIC, g_mqtt_client_id, index);
+    sprintf_P(topic, PSTR("%s/stat/%s/%d"), MQTT_BASE_TOPIC, g_mqtt_ethernet_client_id, index);
+  }
+  return topic;
+}
+
+char * getWiFiEventTopic(char topic[], uint8_t index)
+{
+  if (MQTT_BASE_TOPIC == NULL)
+  {
+    sprintf_P(topic, PSTR("stat/%s/%d"), g_mqtt_wifi_client_id, index);
+  }
+  else
+  {
+    sprintf_P(topic, PSTR("%s/stat/%s/%d"), MQTT_BASE_TOPIC, g_mqtt_wifi_client_id, index);
   }
   return topic;
 }
@@ -688,19 +835,37 @@ void usmEvent(uint8_t id, uint8_t input, uint8_t type, uint8_t state)
     g_last_event_display = millis(); 
   }
 
-  if (mqtt_client.connected())
+#if ENABLE_ETHERNET
+  if (mqtt_ethernet_client.connected())
   {
     // Build JSON payload for this event
     sprintf_P(message, PSTR("{\"PORT\":%d,\"CHAN\":%d,\"INDX\":%d,\"TYPE\":\"%s\",\"EVNT\":\"%s\"}"), port, channel, index, inputType, eventType);
   
     // Publish event to MQTT
     char topic[42];
-    mqtt_client.publish(getEventTopic(topic, index), message);
+    mqtt_ethernet_client.publish(getEthernetEventTopic(topic, index), message);
   }
   else
   {
     Serial.println("FAILOVER!!!");    
   }
+#endif
+
+#if ENABLE_WIFI
+  if (mqtt_wifi_client.connected())
+  {
+    // Build JSON payload for this event
+    sprintf_P(message, PSTR("{\"PORT\":%d,\"CHAN\":%d,\"INDX\":%d,\"TYPE\":\"%s\",\"EVNT\":\"%s\"}"), port, channel, index, inputType, eventType);
+  
+    // Publish event to MQTT
+    char topic[42];
+    mqtt_wifi_client.publish(getWiFiEventTopic(topic, index), message);
+  }
+  else
+  {
+    Serial.println("FAILOVER!!!");    
+  }
+#endif
 }
 
 /**

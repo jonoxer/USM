@@ -9,6 +9,7 @@
 #define       SERIAL_BAUD_RATE        115200
 
 /* Ethernet */
+#define       ENABLE_ETHERNET         true
 #define       ENABLE_DHCP             true
 #define       ENABLE_MAC_ADDRESS_ROM  true
 #define       MAC_I2C_ADDRESS         0x50                  // Microchip 24AA125E48 I2C ROM address
@@ -16,6 +17,12 @@
 const byte    STATIC_MAC[]          = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // Use if no MAC ROM
 const byte    STATIC_IP[]           = { 192, 168, 1, 35 };                    // Use if DHCP disabled
 const byte    STATIC_DNS[]          = { 192, 168, 1, 1 };                     // Use if DHCP disabled
+
+/* WiFi */
+#define       ENABLE_WIFI             false
+#define       WIFI_SSID               "Your SSID"
+#define       WIFI_PASSWORD           "Your PSK"
+
 
 /* MQTT */
 #define       MQTT_BACKOFF_SECS       5                     // How long to increase the backoff timer each time we fail to connect
@@ -36,6 +43,7 @@ const uint8_t MQTT_LWT_RETAIN       = 1;
 /* I2C */
 #define       I2C_CLOCK_SPEED         400000L  
              
+
 /* Ethernet - Uncomment only ONE "CS" option to suit your hardware */
 #define       ETHERNET_CS_PIN         26                    // Rack32 (ESP32) with W5500
 //#define       ETHERNET_CS_PIN         10                  // EtherMega (ATmega2560) with W5100
