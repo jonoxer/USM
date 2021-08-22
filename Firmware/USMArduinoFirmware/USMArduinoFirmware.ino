@@ -92,6 +92,9 @@
 #include <Adafruit_MCP23X17.h>        // For MCP23017 I/O buffers
 #include <USM_Input.h>                // For input handling
 #include "USM_Oled.h"                 // For OLED runtime displays
+#ifdef ARDUINO_ARCH_ESP32
+#include <WiFi.h>                     // Also required for Ethernet to get MAC
+#endif
 
 /*--------------------------- Constants ----------------------------------*/
 // Each MCP23017 has 16 I/O pins
@@ -183,31 +186,31 @@ void setup()
     USM_Oled_draw_ports(g_mcps_found);
   }
 
-  // Determine MAC address
-  byte mac[6];
+  // Determine Ethernet MAC address
+  byte ethernet_mac[6];
   if (ENABLE_MAC_ADDRESS_ROM)
   {
 #ifdef ARDUINO_ARCH_ESP32
-    Serial.print(F("Getting MAC address from ESP32 chip ID: "));
-    uint64_t chip_id = ESP.getEfuseMac();
-    memcpy(mac, &chip_id, sizeof(mac));
+    Serial.print(F("Getting Ethernet MAC address from ESP32 Base MAC: "));
+    WiFi.macAddress(ethernet_mac);  // Temporarily populate Ethernet MAC with ESP32 Base MAC
+    ethernet_mac[5] += 3;           // Ethernet MAC is Base MAC + 3 (see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system.html#mac-address)
 #else
-    Serial.print(F("Getting MAC address from external ROM: "));
-    mac[0] = readRegister(MAC_I2C_ADDRESS, 0xFA);
-    mac[1] = readRegister(MAC_I2C_ADDRESS, 0xFB);
-    mac[2] = readRegister(MAC_I2C_ADDRESS, 0xFC);
-    mac[3] = readRegister(MAC_I2C_ADDRESS, 0xFD);
-    mac[4] = readRegister(MAC_I2C_ADDRESS, 0xFE);
-    mac[5] = readRegister(MAC_I2C_ADDRESS, 0xFF);
+    Serial.print(F("Getting Ethernet MAC address from external ROM: "));
+    ethernet_mac[0] = readRegister(MAC_I2C_ADDRESS, 0xFA);
+    ethernet_mac[1] = readRegister(MAC_I2C_ADDRESS, 0xFB);
+    ethernet_mac[2] = readRegister(MAC_I2C_ADDRESS, 0xFC);
+    ethernet_mac[3] = readRegister(MAC_I2C_ADDRESS, 0xFD);
+    ethernet_mac[4] = readRegister(MAC_I2C_ADDRESS, 0xFE);
+    ethernet_mac[5] = readRegister(MAC_I2C_ADDRESS, 0xFF);
 #endif
   }
   else
   {
     Serial.print(F("Using static MAC address: "));
-    memcpy(mac, STATIC_MAC, sizeof(mac));
+    memcpy(ethernet_mac, STATIC_MAC, sizeof(ethernet_mac));
   }
   char mac_address[18];
-  sprintf_P(mac_address, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  sprintf_P(mac_address, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), ethernet_mac[0], ethernet_mac[1], ethernet_mac[2], ethernet_mac[3], ethernet_mac[4], ethernet_mac[5]);
   Serial.println(mac_address);
 
   // Set up Ethernet
@@ -216,12 +219,12 @@ void setup()
   if (ENABLE_DHCP)
   {
     Serial.print(F("Getting IP address via DHCP: "));
-    Ethernet.begin(mac);
+    Ethernet.begin(ethernet_mac);
   }
   else
   {
     Serial.print(F("Using static IP address: "));
-    Ethernet.begin(mac, STATIC_IP, STATIC_DNS);
+    Ethernet.begin(ethernet_mac, STATIC_IP, STATIC_DNS);
   }
   Serial.println(Ethernet.localIP());
 
@@ -237,7 +240,8 @@ void setup()
   // Generate MQTT client id, unless one is explicitly defined
   if (MQTT_CLIENT_ID == NULL)
   {
-    sprintf_P(g_mqtt_client_id, PSTR("USM-%02X%02X%02X"), mac[3], mac[4], mac[5]);  
+    // Below uses Ethernet MAC. Ideally it should also support WiFi MAC depending on active connection.
+    sprintf_P(g_mqtt_client_id, PSTR("USM-%02X%02X%02X"), ethernet_mac[3], ethernet_mac[4], ethernet_mac[5]);  
   }
   else
   {
