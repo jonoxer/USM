@@ -1,68 +1,20 @@
 /**
-  Universal State Monitor
+  Universal State Monitor Firmware
   
-  Monitor buttons, switches, or contacts and report associated events.
-
-  Uses MCP23017 I2C I/O buffers to detect digital signals being pulled to 
-  GND and publishes event reports to an MQTT broker.
-
-  The configuration of each individual input can be set by publishing
-  an MQTT message to one of these topics;
-
-    [BASETOPIC/]conf/<CLIENTID>/<INDEX>/type
-    [BASETOPIC/]conf/<CLIENTID>/<INDEX>/invt
-    
-  where;
-
-    BASETOPIC   Optional base topic prepended to device topics
-    CLIENTID    Client id of device, defaults to USM-<MAC ADDRESS>
-    INDEX       Index of the input to configure (1-96)
-    
-  The message should be;
-
-    /type       One of BUTTON, CONTACT, ROTARY, SWITCH or TOGGLE
-    /invt       Either 0 or 1 (to invert event)
-    
-  A null or empty message will reset the input to;
-
-    /type       SWITCH
-    /invt       0 (non-inverted)
-    
-  A retained message will ensure the USM auto-configures on startup.
+  See https://github.com/SuperHouse/USM for documentation.
   
-  The event report is to a topic of the form;
-
-    [BASETOPIC/]stat/<CLIENTID>/<INDEX>
-
-  where;
-  
-    BASETOPIC   Optional base topic prepended to device topics
-    CLIENTID    Client id of device, defaults to USM-<MAC ADDRESS>
-    INDEX       Index of the input causing the event (1-96)
-
-  The message is a JSON payload of the form; 
-
-    {"PORT":24, "CHANNEL":2, "INDEX":94, "TYPE":"SWITCH", "EVENT":"ON"}
-
-  where EVENT can be one of (depending on type);
-
-    BUTTON      SINGLE, DOUBLE, TRIPLE, QUAD, PENTA, or HOLD
-    CONTACT     OPEN or CLOSED
-    ROTARY      UP or DOWN
-    SWITCH      ON or OFF
-    TOGGLE      TOGGLE
-
   Compile options:
-    ESP32 or Arduino Mega 2560
+    Arduino Mega 2560
+    ESP32
 
   External dependencies. Install using the Arduino library manager:
-      "Adafruit_MCP23017"
-      "PubSubClient" by Nick O'Leary
-      "SSD1306Ascii"
-      "USM_Input" by Ben Jones (https://github.com/sumnerboy12/USMInput-Arduino-Library)
+    "Adafruit_MCP23X17"
+    "PubSubClient" by Nick O'Leary
+    "USM_Input" by Ben Jones (https://github.com/sumnerboy12/USMInput-Arduino-Library)
+    "SSD1306Ascii"
 
   Bundled dependencies. No need to install separately:
-      "USM_Oled" by moinmoin-sh
+    "USM_Oled" by moinmoin-sh
 
   Based on the Light Switch Controller hardware found here:
     www.superhouse.tv/lightswitch
