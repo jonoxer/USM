@@ -49,6 +49,8 @@ A null or empty message will reset the input to;
     
 A retained message will ensure the USM auto-configures on startup.
 
+**NOTE: inverting a normally-open (NO) BUTTON input will result in a constant stream of HOLD events!**
+
 ### Events
 An input EVENT is reported to a topic of the form;
 ```
