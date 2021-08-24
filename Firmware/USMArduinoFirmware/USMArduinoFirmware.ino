@@ -842,6 +842,7 @@ void writeRegister(int adr, uint8_t reg, uint8_t data)
 // Reset the Wiznet Ethernet chip
 void resetWiznetChip()
 {
+#ifdef WIZNET_RESET_PIN
   Serial.print("Resetting Wiznet W5500 Ethernet chip...  ");
   pinMode(WIZNET_RESET_PIN, OUTPUT);
   digitalWrite(WIZNET_RESET_PIN, HIGH);
@@ -851,4 +852,5 @@ void resetWiznetChip()
   digitalWrite(WIZNET_RESET_PIN, HIGH);
   delay(350);
   Serial.println("Done.");
+#endif
 }
