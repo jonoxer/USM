@@ -28,6 +28,7 @@ Each port on a USM can monitor up to 4 channels and are numbered (for a 24-port 
 
 
 ## Inputs
+### Configuration
 Each INPUT can be configured by publishing an MQTT message to one of these topics;
 ```
 [BASETOPIC/]conf/<CLIENTID>/<INDEX>/type
@@ -48,8 +49,9 @@ A null or empty message will reset the input to;
     
 A retained message will ensure the USM auto-configures on startup.
 
+**NOTE: inverting a normally-open (NO) BUTTON input will result in a constant stream of HOLD events!**
 
-## Events
+### Events
 An input EVENT is reported to a topic of the form;
 ```
 [BASETOPIC/]stat/<CLIENTID>/<INDEX>
